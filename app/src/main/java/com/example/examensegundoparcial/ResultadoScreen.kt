@@ -17,6 +17,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.firestore
 import java.util.*
 
 fun obtenerSignoZodiacoChino(año: Int): Pair<String, Int> {
@@ -33,12 +35,33 @@ fun obtenerSignoZodiacoChino(año: Int): Pair<String, Int> {
     return Pair(signos[indice], imagenes[indice])
 }
 
+fun guardarEncuestaEnFirebase(usuario: Usuario, onSucces: ()->Unit, onError: (Exception)->Unit) {
+    val db = Firebase.firestore
+    db.collection("encuestas").add(usuario).addOnSuccessListener {
+        onSucces()
+    }.addOnFailureListener {
+        onError(it)
+    }
+}
+
 
 @Composable
 fun resultadoScreen(usuario: Usuario) {
+    var enviado by remember { mutableStateOf(false) }
     val añoNacimiento = usuario.año.toIntOrNull() ?: 2000
     val edad = Calendar.getInstance().get(Calendar.YEAR) - añoNacimiento
     val (signo, imagenRes) = obtenerSignoZodiacoChino(añoNacimiento)
+
+    LaunchedEffect(Unit) {
+        if (!enviado) {
+            guardarEncuestaEnFirebase(usuario, onSucces = {
+                enviado = true
+            }, onError = {
+                enviado = false
+                println("Error al guardar la encuesta: ${it.message}")
+            })
+        }
+    }
 
     Box(
         modifier = Modifier
